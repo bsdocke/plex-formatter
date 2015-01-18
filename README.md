@@ -11,8 +11,11 @@ The purpose of this project is twofold:
 
 #Usage
 
-python plex-formatter.py -d/-f [path to directory/ file1 file2 file3 ...] [-tv/-movie]
+python plex-formatter.py -d/-f filelistordirectorypath [-tv/movie] [--prepend value]
 
 -d or -f are required. This flag indicates whether you will be providing a directory, in which case all files in the directory will be affected, or specific files
 path to directory or list of files indicate target files
 -tv or -movie is an optional flag to indicate which format to rename files in
+    -tv looks for common episode naming conventions that are not compatible with Plex. It then tries to convert them to the S_E__ format if possible.
+    -movie is the default configuration, and either removes common delimiters or converts them to periods. It is a subset of -tv
+--prepend is an optional flag that prepends a given string to the files specified

@@ -50,6 +50,7 @@ def hasFlag(flag):
 def removeCommonDelimiters(filename):
     newFilename = filename.replace(" ", ".")
     newFilename = newFilename.replace("-", "")
+    newFilename = newFilename.replace("_", ".")
     newFilename = newFilename.replace("..", ".")
     return newFilename
 
@@ -86,35 +87,66 @@ def cleanTVConventions(filename):
     newFilename = cleanXDelimitedNaming(newFilename)
     return newFilename
 
-if hasFlag("--help"):
-    print("valid usage is plex-formatter -d [directory path] or plex-formatter -f [file1] [file2]")
-elif hasFlag("-d"):
-    filepath = sys.argv[2]
-    files = [f for f in os.listdir(filepath) if path.isfile( filepath + "/" + f)]
-    for filename in files:
-        newFilename = removeCommonDelimiters(filename)
-        if hasTVFlag():
-            newFilename = cleanTVConventions(newFilename)
-            if hasFlag("--prepend"):
-                prepInd = sys.argv.index("--prepend") + 1
-                newFilename = sys.argv[prepInd] + newFilename
-            print(newFilename)            
-        os.rename(filepath + "/" + filename, filepath + "/" + newFilename)
-elif hasFlag("-f"):
-    i = sys.argv.index("-f") + 1
-    while(i < len(sys.argv[i]) and path.isfile(sys.argv[i])):
-        filenameTokens = sys.argv[i].split("\\")
-        filename = filenameTokens[len(filenameTokens) -1]
-        newFilename = removeCommonDelimiters(filename)
-        if hasTVFlag():
-            newFilename = cleanTVConventions(newFilename)
-            if hasFlag("--prepend"):
-                prepInd = sys.argv.index("--prepend") + 1
-                newFilename = sys.argv[prepInd] + newFilename
-            print(newFilename)
-        filenameTokens[len(filenameTokens) -1] = newFilename
-        finalName = ("\\").join(filenameTokens)
-        os.rename(sys.argv[i], finalName)
+
+def getIndexOfFlagValue(flag):
+    return sys.argv.index(flag) + 1
+
+def getIndexOfFirstFile():
+    return getIndexOfFlagValue("-f")
+
+def getIndexOfDirectory():
+    return getIndexOfFlagValue("-d")
+
+def getIndexOfPrependValue():
+    return getIndexOfFlagValue("--prepend")
+
+def prependValue(baseString):
+    prepInd = getIndexOfPrependValue()
+    return sys.argv[prepInd] + baseString
+
+def isIndexAValidFilepath(i):
+    return i < len(sys.argv[i]) and path.isfile(sys.argv[i])
+
+def handleTVConversions(filename):
+    newFilename = removeCommonDelimiters(filename)
+    if hasTVFlag():
+        newFilename = cleanTVConventions(newFilename)
+        if hasFlag("--prepend"):
+            newFilename = prependValue(newFilename)
+    print(newFilename)
+    return newFilename
+
+def processIndividualFileAtIndex(index):
+    filenameTokens = splitFilePathIntoTokens(i)
+    filenameTokens[-1] = handleTVConversions(filenameTokens[-1])
+    finalName = ("\\").join(filenameTokens)
+        
+    os.rename(sys.argv[i], finalName)
+
+def processListOfFiles():
+    i = getIndexOfFirstFile()
+    while(isIndexAValidFilepath(i)):
+        processIndividualFileAtIndex(i)
         i+=1
 
+def processFilesInDirectory():
+    filepath = sys.argv[getIndexOfDirectory()]
+    files = [f for f in os.listdir(filepath) if path.isfile( filepath + "/" + f)]
+    for filename in files:
+        newFilename = handleTVConversions(filename)         
+        os.rename(filepath + "/" + filename, filepath + "/" + newFilename)
+        
+def splitFilePathIntoTokens(index):
+    return sys.argv[index].split("\\")
 
+
+def main():
+    if hasFlag("--help"):
+        print("valid usage is plex-formatter -d [directory path] or plex-formatter -f [file1] [file2]")
+    elif hasFlag("-d"):
+        processFilesInDirectory()
+    elif hasFlag("-f"):
+        processListOfFiles()
+
+
+main()
