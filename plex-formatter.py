@@ -11,24 +11,110 @@
 # Brandon Dockery
 # 1/17/2015
 import sys
+import re
 import os
 from os import path
 
 
-if sys.argv[1] == "--help":
+
+
+
+def hasFilesFlag():
+    try:
+        sys.argv.index("-f")
+        return True
+    except ValueError:
+        return False
+
+def hasDirectoryFlag():
+    try:
+        sys.argv.index("-d")
+        return True
+    except ValueError:
+        return False
+    
+def hasTVFlag():
+    try:
+        sys.argv.index("-tv")
+        return True
+    except ValueError:
+        return False
+
+def hasFlag(flag):
+    try:
+        sys.argv.index(flag)
+        return True
+    except ValueError:
+        return False
+
+def removeCommonDelimiters(filename):
+    newFilename = filename.replace(" ", ".")
+    newFilename = newFilename.replace("-", "")
+    newFilename = newFilename.replace("..", ".")
+    return newFilename
+
+def cleanSeasonNaming(filename):
+    seasonSearch = re.search(r'[Ss]eason(\.*)\d{1,2}',filename)
+    if seasonSearch:
+        seasonNumberSearch = re.search(r'\d+', seasonSearch.group())
+        newFilename = re.sub(r'[Ss]eason(\.*)\d{1,2}(\.*)',"S" + seasonNumberSearch.group(), filename)
+        return newFilename
+    else:
+        return filename
+
+def cleanEpisodeNaming(filename):
+    episodeSearch = re.search(r'[Ee]pisode(\.*)\d+',filename)
+    if episodeSearch:
+        episodeNumberSearch = re.search(r'\d+', episodeSearch.group())
+        newFilename = re.sub(r'[Ee]pisode(\.*)\d+',"E" + episodeNumberSearch.group(), filename)
+        return newFilename
+    else:
+        return filename
+
+def cleanXDelimitedNaming(filename):
+    searchObj = re.search(r'\d{1,2}x\d{1,2}', filename)
+    if searchObj:
+        tokens = str(searchObj.group()).split("x")
+        newFilename = re.sub(r'\d{1,2}x\d{1,2}', "S" + tokens[0] + "E" + tokens[1], filename, 1)
+        return newFilename
+    else:
+        return filename
+
+def cleanTVConventions(filename):
+    newFilename = cleanSeasonNaming(filename)
+    newFilename = cleanEpisodeNaming(newFilename)
+    newFilename = cleanXDelimitedNaming(newFilename)
+    return newFilename
+
+if hasFlag("--help"):
     print("valid usage is plex-formatter -d [directory path] or plex-formatter -f [file1] [file2]")
-elif sys.argv[1] == "-d":
+elif hasFlag("-d"):
     filepath = sys.argv[2]
     files = [f for f in os.listdir(filepath) if path.isfile( filepath + "/" + f)]
     for filename in files:
-        newFilename = filename.replace(" ", ".")
-        newFilename = newFilename.replace("-", "")
-        newFilename = newFilename.replace("..", ".")
-
-        if sys.argv.length > 3 && sys.argv[3] == "-tv":
-            newFilename = newFilename.replace("Season","S")
-            newFilename = newFilename.replace("season","S")
-            newFilename = newFilename.replace("Episode", "E")
-            newFilename = newFilename.replace("episode", "E")
-            
+        newFilename = removeCommonDelimiters(filename)
+        if hasTVFlag():
+            newFilename = cleanTVConventions(newFilename)
+            if hasFlag("--prepend"):
+                prepInd = sys.argv.index("--prepend") + 1
+                newFilename = sys.argv[prepInd] + newFilename
+            print(newFilename)            
         os.rename(filepath + "/" + filename, filepath + "/" + newFilename)
+elif hasFlag("-f"):
+    i = sys.argv.index("-f") + 1
+    while(i < len(sys.argv[i]) and path.isfile(sys.argv[i])):
+        filenameTokens = sys.argv[i].split("\\")
+        filename = filenameTokens[len(filenameTokens) -1]
+        newFilename = removeCommonDelimiters(filename)
+        if hasTVFlag():
+            newFilename = cleanTVConventions(newFilename)
+            if hasFlag("--prepend"):
+                prepInd = sys.argv.index("--prepend") + 1
+                newFilename = sys.argv[prepInd] + newFilename
+            print(newFilename)
+        filenameTokens[len(filenameTokens) -1] = newFilename
+        finalName = ("\\").join(filenameTokens)
+        os.rename(sys.argv[i], finalName)
+        i+=1
+
+
