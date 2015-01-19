@@ -100,9 +100,16 @@ def getIndexOfDirectory():
 def getIndexOfPrependValue():
     return getIndexOfFlagValue("--prepend")
 
+def getIndexOfRemoveValue():
+    return getIndexOfFlagValue("--remove-pattern")
+
 def prependValue(baseString):
     prepInd = getIndexOfPrependValue()
     return sys.argv[prepInd] + baseString
+
+def removePattern(baseString):
+    removeInd = getIndexOfRemoveValue()
+    return re.sub(r'' + sys.argv[removeInd], '', baseString)
 
 def isIndexAValidFilepath(i):
     return i < len(sys.argv[i]) and path.isfile(sys.argv[i])
@@ -111,17 +118,21 @@ def handleTVConversions(filename):
     newFilename = removeCommonDelimiters(filename)
     if hasTVFlag():
         newFilename = cleanTVConventions(newFilename)
-        if hasFlag("--prepend"):
-            newFilename = prependValue(newFilename)
-    print(newFilename)
+        
     return newFilename
 
 def processIndividualFileAtIndex(index):
     filenameTokens = splitFilePathIntoTokens(i)
     filenameTokens[-1] = handleTVConversions(filenameTokens[-1])
+    
+    if hasFlag("--prepend"):
+            filenameTokens[-1] = prependValue(filenameTokens[-1])
+    if hasFlag("--remove-pattern"):
+            filenameTokens[-1] = removePattern(filenameTokens[-1])
     finalName = ("\\").join(filenameTokens)
         
     os.rename(sys.argv[i], finalName)
+    print(filenameTokens[-1])
 
 def processListOfFiles():
     i = getIndexOfFirstFile()
@@ -133,8 +144,13 @@ def processFilesInDirectory():
     filepath = sys.argv[getIndexOfDirectory()]
     files = [f for f in os.listdir(filepath) if path.isfile( filepath + "/" + f)]
     for filename in files:
-        newFilename = handleTVConversions(filename)         
+        newFilename = handleTVConversions(filename)
+        if hasFlag("--prepend"):
+            newFilename = prependValue(newFilename)
+        if hasFlag("--remove-pattern"):
+            newFilename = removePattern(newFilename)
         os.rename(filepath + "/" + filename, filepath + "/" + newFilename)
+        print(newFilename)
         
 def splitFilePathIntoTokens(index):
     return sys.argv[index].split("\\")
