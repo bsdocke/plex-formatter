@@ -89,19 +89,28 @@ def cleanTVConventions(filename):
 
 
 def getIndexOfFlagValue(flag):
-    return sys.argv.index(flag) + 1
+    try:
+        return sys.argv.index(flag) + 1
+    except:
+        return -1
 
 def getIndexOfFirstFile():
     return getIndexOfFlagValue("-f")
 
 def getIndexOfDirectory():
-    return getIndexOfFlagValue("-d")
+    if(getIndexOfFlagValue("-d") >= 0):
+        return getIndexOfFlagValue("-d")
+    else:
+        return getIndexOfFlagValue("-dr")
 
 def getIndexOfPrependValue():
     return getIndexOfFlagValue("--prepend")
 
 def getIndexOfRemoveValue():
     return getIndexOfFlagValue("--remove-pattern")
+
+def getIndexOfSubPattern():
+    return getIndexOfFlagValue("--sub")
 
 def prependValue(baseString):
     prepInd = getIndexOfPrependValue()
@@ -110,6 +119,10 @@ def prependValue(baseString):
 def removePattern(baseString):
     removeInd = getIndexOfRemoveValue()
     return re.sub(r'' + sys.argv[removeInd], '', baseString)
+
+def replacePattern(baseString):
+    patternInd = getIndexOfSubPattern()
+    return re.sub(r'' + sys.argv[patternInd], sys.argv[patternInd + 1],baseString)
 
 def isIndexAValidFilepath(i):
     return i < len(sys.argv[i]) and path.isfile(sys.argv[i])
@@ -129,6 +142,8 @@ def processIndividualFileAtIndex(index):
             filenameTokens[-1] = prependValue(filenameTokens[-1])
     if hasFlag("--remove-pattern"):
             filenameTokens[-1] = removePattern(filenameTokens[-1])
+    if hasFlag("--sub"):
+            filenameTokens[-1] = replacePattern(filenameTokens[-1])
     finalName = ("\\").join(filenameTokens)
         
     os.rename(sys.argv[i], finalName)
@@ -140,8 +155,14 @@ def processListOfFiles():
         processIndividualFileAtIndex(i)
         i+=1
 
-def processFilesInDirectory():
-    filepath = sys.argv[getIndexOfDirectory()]
+def processFilesInDirectory(directory):
+    filepath = directory
+    if hasFlag("-dr"):
+        print("has dr")
+        dirs = [d for d in os.listdir(filepath) if path.isdir(filepath + "\\" + d)]
+        for dirname in dirs:
+            print(filepath + "\\" + dirname)
+            processFilesInDirectory(filepath + "\\" + dirname)
     files = [f for f in os.listdir(filepath) if path.isfile( filepath + "/" + f)]
     for filename in files:
         newFilename = handleTVConversions(filename)
@@ -149,6 +170,11 @@ def processFilesInDirectory():
             newFilename = prependValue(newFilename)
         if hasFlag("--remove-pattern"):
             newFilename = removePattern(newFilename)
+        if hasFlag("--sub"):
+            newFilename = replacePattern(newFilename)
+        if hasFlag("--name-for-folder"):
+            filetype = newFilename.split(".")[-1]
+            newFilename = filepath.split("\\")[-1] + "." + filetype
         os.rename(filepath + "/" + filename, filepath + "/" + newFilename)
         print(newFilename)
         
@@ -159,8 +185,8 @@ def splitFilePathIntoTokens(index):
 def main():
     if hasFlag("--help"):
         print("valid usage is plex-formatter -d [directory path] or plex-formatter -f [file1] [file2]")
-    elif hasFlag("-d"):
-        processFilesInDirectory()
+    elif hasFlag("-d") or hasFlag("-dr"):
+        processFilesInDirectory(sys.argv[getIndexOfDirectory()])
     elif hasFlag("-f"):
         processListOfFiles()
 
